@@ -95,14 +95,22 @@ remote_file File.join(home_dir, "jenkins.war") do
   action :nothing
 end
 
-http_request "HEAD #{node['jenkins']['mirror']}/war/#{node['jenkins']['server']['version']}/jenkins.war" do
-  message ""
-  url "#{node['jenkins']['mirror']}/war/#{node['jenkins']['server']['version']}/jenkins.war"
-  action :head
-  if File.exists?(File.join(home_dir, "jenkins.war"))
-    headers "If-Modified-Since" => File.mtime(File.join(home_dir, "jenkins.war")).httpdate
+begin
+  http_request "HEAD #{node['jenkins']['mirror']}/war/#{node['jenkins']['server']['version']}/jenkins.war" do
+    message ""
+    url "#{node['jenkins']['mirror']}/war/#{node['jenkins']['server']['version']}/jenkins.war"
+    action :head
+    if File.exists?(File.join(home_dir, "jenkins.war"))
+      headers "If-Modified-Since" => File.mtime(File.join(home_dir, "jenkins.war")).httpdate
+    end
+    notifies :create, "remote_file[#{File.join(home_dir, "jenkins.war")}]", :immediately
   end
-  notifies :create, "remote_file[#{File.join(home_dir, "jenkins.war")}]", :immediately
+rescue HTTPServerException
+  if File.exists?(File.join(home_dir, "jenkins.war"))
+    Chef::Log.warn("Jenkins mirror failed to serve WAR ignoring...")
+  else
+    raise
+  end
 end
 
 
